@@ -1,0 +1,23 @@
+{
+  "name": "@earthlink/core",
+  "version": "1.0.0",
+  "description": "Core utilities: Result/Option types, type guards, ts-pattern and zod re-exports",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "jest"
+  },
+  "dependencies": {
+    "ts-pattern": "^5.6.0",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.12",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.4",
+    "typescript": "^5.5.4"
+  },
+  "files": ["dist"],
+  "license": "MIT"
+}

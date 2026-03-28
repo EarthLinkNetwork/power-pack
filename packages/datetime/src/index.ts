@@ -277,6 +277,147 @@ export class DateTime {
     const result = LuxonDateTime.fromISO(dateString);
     return result.isValid;
   }
+
+  // ===== New Arithmetic Methods =====
+
+  addSeconds(seconds: number): DateTime {
+    return DateTime.fromLuxonDateTime(this._luxonDateTime.plus({ seconds }));
+  }
+
+  addYears(years: number): DateTime {
+    return DateTime.fromLuxonDateTime(this._luxonDateTime.plus({ years }));
+  }
+
+  // ===== New Diff Methods =====
+
+  diffInDays(other: DateTime | string): number {
+    const otherDt =
+      typeof other === "string" ? DateTime.fromString(other) : other;
+    return this._luxonDateTime.diff(otherDt.DateTime, "days").days;
+  }
+
+  diffInHours(other: DateTime | string): number {
+    const otherDt =
+      typeof other === "string" ? DateTime.fromString(other) : other;
+    return this._luxonDateTime.diff(otherDt.DateTime, "hours").hours;
+  }
+
+  diffInMinutes(other: DateTime | string): number {
+    const otherDt =
+      typeof other === "string" ? DateTime.fromString(other) : other;
+    return this._luxonDateTime.diff(otherDt.DateTime, "minutes").minutes;
+  }
+
+  diffInSeconds(other: DateTime | string): number {
+    const otherDt =
+      typeof other === "string" ? DateTime.fromString(other) : other;
+    return this._luxonDateTime.diff(otherDt.DateTime, "seconds").seconds;
+  }
+
+  diffInMonths(other: DateTime | string): number {
+    const otherDt =
+      typeof other === "string" ? DateTime.fromString(other) : other;
+    return this._luxonDateTime.diff(otherDt.DateTime, "months").months;
+  }
+
+  diffInYears(other: DateTime | string): number {
+    const otherDt =
+      typeof other === "string" ? DateTime.fromString(other) : other;
+    return this._luxonDateTime.diff(otherDt.DateTime, "years").years;
+  }
+
+  // ===== New Calendar Properties =====
+
+  daysInMonth(): number {
+    return this._luxonDateTime.daysInMonth!;
+  }
+
+  isLeapYear(): boolean {
+    return this._luxonDateTime.isInLeapYear;
+  }
+
+  static daysInMonthOf(year: number, month: number): number {
+    return LuxonDateTime.local(year, month).daysInMonth!;
+  }
+
+  static isLeapYearOf(year: number): boolean {
+    return LuxonDateTime.local(year).isInLeapYear;
+  }
+
+  // ===== New Boundary Methods =====
+
+  startOfDay(): DateTime {
+    return DateTime.fromLuxonDateTime(this._luxonDateTime.startOf("day"));
+  }
+
+  endOfDay(): DateTime {
+    return DateTime.fromLuxonDateTime(this._luxonDateTime.endOf("day"));
+  }
+
+  startOfMonth(): DateTime {
+    return DateTime.fromLuxonDateTime(this._luxonDateTime.startOf("month"));
+  }
+
+  endOfMonth(): DateTime {
+    return DateTime.fromLuxonDateTime(this._luxonDateTime.endOf("month"));
+  }
+
+  // ===== New Comparison Methods =====
+
+  isBefore(other: DateTime | string): boolean {
+    const otherDt =
+      typeof other === "string" ? DateTime.fromString(other) : other;
+    return this._luxonDateTime < otherDt.DateTime;
+  }
+
+  isAfter(other: DateTime | string): boolean {
+    const otherDt =
+      typeof other === "string" ? DateTime.fromString(other) : other;
+    return this._luxonDateTime > otherDt.DateTime;
+  }
+
+  isSameDay(other: DateTime | string): boolean {
+    const otherDt =
+      typeof other === "string" ? DateTime.fromString(other) : other;
+    return this._luxonDateTime.hasSame(otherDt.DateTime, "day");
+  }
+
+  // ===== New Static Factory =====
+
+  static tryParse(dateString: string): DateTime | null {
+    const dt = DateTime.fromString(dateString);
+    return dt.isValid() ? dt : null;
+  }
+
+  // ===== New Component Getters =====
+
+  get year(): number {
+    return this._luxonDateTime.year;
+  }
+
+  get month(): number {
+    return this._luxonDateTime.month;
+  }
+
+  get day(): number {
+    return this._luxonDateTime.day;
+  }
+
+  get hour(): number {
+    return this._luxonDateTime.hour;
+  }
+
+  get minute(): number {
+    return this._luxonDateTime.minute;
+  }
+
+  get second(): number {
+    return this._luxonDateTime.second;
+  }
+
+  get dayOfWeek(): number {
+    return this._luxonDateTime.weekday;
+  }
 }
 
 declare global {

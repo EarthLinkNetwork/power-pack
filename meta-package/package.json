@@ -1,9 +1,25 @@
 {
   "name": "@earthlink/power-utils",
-  "version": "1.0.1",
-  "private": false,
+  "version": "2.0.0",
+  "description": "All-in-one TypeScript utility toolkit: DateTime, StringUtils, Logger, Result/Option types, ts-pattern, zod, and more",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "jest"
+  },
   "dependencies": {
+    "@earthlink/core": "workspace:*",
     "@earthlink/date-time": "workspace:*",
-    "@earthlink/string-utils": "workspace:*"
-  }
+    "@earthlink/string-utils": "workspace:*",
+    "@earthlink/logger": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.12",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.4",
+    "typescript": "^5.5.4"
+  },
+  "files": ["dist"],
+  "license": "MIT"
 }

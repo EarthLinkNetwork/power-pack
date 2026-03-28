@@ -1,7 +1,5 @@
+const base = require("../../jest.config.base");
 module.exports = {
-  preset: "ts-jest",
-  testEnvironment: "node",
-  transform: {
-    "^.+\\.tsx?$": "ts-jest",
-  },
+  ...base,
+  roots: ["<rootDir>/tests"],
 };
