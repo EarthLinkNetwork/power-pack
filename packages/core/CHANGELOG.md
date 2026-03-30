@@ -1,4 +1,4 @@
-# @earthlink/date-time
+# @earthlink/core
 
 ## 1.1.0
 
@@ -9,9 +9,3 @@
   New packages: @earthlink/core (Result/Option, ts-pattern, zod), @earthlink/logger (pino wrapper), @earthlink/eslint-config.
   Enhanced: @earthlink/date-time (28 new C#-like methods), @earthlink/string-utils (21 new functions).
   Meta-package now re-exports all packages as a single install point.
-
-## 1.0.1
-
-### Patch Changes
-
-- 0e09ebf: init

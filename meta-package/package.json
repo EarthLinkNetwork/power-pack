@@ -20,6 +20,8 @@
     "ts-jest": "^29.2.4",
     "typescript": "^5.5.4"
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "license": "MIT"
 }
