@@ -22,7 +22,7 @@ jobs:
   security-pr:
     runs-on: [self-hosted, linux, x64, ci, runner-light]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with: { fetch-depth: 0 }
 
       - name: Load config

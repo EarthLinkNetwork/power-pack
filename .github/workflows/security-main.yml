@@ -7,7 +7,7 @@ jobs:
   main-scan-reimport:
     runs-on: [self-hosted, linux, x64, ci, runner-security]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with: { fetch-depth: 0 }
       - name: Scan (semgrep/gitleaks/trivy-fs → JSON)
         run: |
