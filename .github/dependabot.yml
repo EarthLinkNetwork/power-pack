@@ -1,0 +1,27 @@
+# dependabot.yml — 配置先は **リポジトリ直下の .github/dependabot.yml**（workflow ではない）。
+# 使わない ecosystem はブロックごと削除する。private repo でも version updates は利用可。
+version: 2
+updates:
+  - package-ecosystem: "npm"            # npm / pnpm / yarn 共通（lockfile を自動判別）
+    directory: "/"
+    schedule: { interval: "weekly", day: "monday" }
+    open-pull-requests-limit: 5
+    labels: ["dependencies", "security"]
+    commit-message: { prefix: "deps" }
+  - package-ecosystem: "pip"            # pip / poetry / uv（pyproject/requirements を判別）
+    directory: "/"
+    schedule: { interval: "weekly", day: "monday" }
+    open-pull-requests-limit: 5
+    labels: ["dependencies", "python"]
+    commit-message: { prefix: "deps(py)" }
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule: { interval: "weekly", day: "monday" }
+    open-pull-requests-limit: 3
+    labels: ["dependencies", "docker"]
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule: { interval: "weekly", day: "monday" }
+    open-pull-requests-limit: 5
+    labels: ["ci", "dependencies"]
+    commit-message: { prefix: "ci" }
