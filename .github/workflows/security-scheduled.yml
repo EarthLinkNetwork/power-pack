@@ -1,0 +1,38 @@
+name: security-scheduled
+# 定期スキャン: コード未変更でも最新 DB/ルールで新規 CVE を検出し DefectDojo を更新。
+# 既定: 毎日 19:00 UTC = 04:00 JST。新規 Critical/High のみ Slack 通知。
+# 2回/日にするなら cron を2行に (例 "0 18 * * *" と "0 6 * * *")。
+on:
+  schedule:
+    - cron: "0 19 * * *"
+  workflow_dispatch:
+permissions: { contents: read }
+jobs:
+  scheduled-scan:
+    runs-on: [self-hosted, linux, x64, ci, runner-security]
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: Scan (最新 Trivy DB / Gitleaks / Semgrep)
+        run: |
+          mkdir -p scan-results
+          TV=0.71.2; curl -sSL "https://github.com/aquasecurity/trivy/releases/download/v${TV}/trivy_${TV}_Linux-64bit.tar.gz" | tar -xz -C /tmp trivy
+          /tmp/trivy fs --format json --output scan-results/trivy-fs.json --exit-code 0 .
+          V=8.30.1; curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v${V}/gitleaks_${V}_linux_x64.tar.gz" | tar -xz -C /tmp gitleaks
+          /tmp/gitleaks detect --source . --report-format json --report-path scan-results/gitleaks.json --redact --exit-code 0
+          python3 -m pip install --user --break-system-packages -q semgrep; export PATH="$HOME/.local/bin:$PATH"
+          semgrep scan --config p/security-audit --json --output scan-results/semgrep.json || true
+      - name: Reimport + 新規 Critical/High のみ通知
+        env:
+          DEFECTDOJO_URL: "${{ secrets.DEFECTDOJO_URL }}"
+          DEFECTDOJO_TOKEN: "${{ secrets.DEFECTDOJO_TOKEN }}"
+          SLACK_WEBHOOK_URL: "${{ secrets.SLACK_WEBHOOK_URL }}"
+        run: |
+          R="${GITHUB_REPOSITORY##*/}"
+          declare -A M=( [trivy-fs.json]="Trivy Scan" [gitleaks.json]="Gitleaks Scan" [semgrep.json]="Semgrep JSON Report" )
+          for f in "${!M[@]}"; do
+            [ -f "scan-results/$f" ] && bash .github/eln-scripts/reimport-scan.sh --repo "$R" --engagement continuous-main-scan \
+              --scan-type "${M[$f]}" --file "scan-results/$f" --test-title "${M[$f]}" --close-old --emit-new "scan-results/new-$f" || true
+          done
+          cat scan-results/new-*.json 2>/dev/null | jq -s 'add // []' > scan-results/new-all.json || echo "[]" > scan-results/new-all.json
+          bash .github/eln-scripts/notify-slack.sh --context scheduled --repo "$GITHUB_REPOSITORY" --only-if-new scan-results/new-all.json || true

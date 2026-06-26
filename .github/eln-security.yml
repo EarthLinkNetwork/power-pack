@@ -1,0 +1,11 @@
+# 各 repo の .github/eln-security.yml に置く（任意）。無ければ既定値で動く。
+# 「最初は緩く、後から厳格化」を設定で切替できるようにするためのファイル。
+pr:
+  fail_severities: [critical, high]   # PR を fail にする severity
+  secret_fail: true                   # secret 検出で fail
+  medium_fail: false                  # medium 以下は最初は warning（true で fail 化）
+main:
+  reimport: true                      # main merge 後に DefectDojo へ reimport
+  close_old_findings: true
+notify:
+  slack_on: [main_critical, main_high, secret, scheduled_new_critical, scheduled_new_high]

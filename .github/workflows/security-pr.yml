@@ -1,0 +1,92 @@
+# security-pr.yml — PR セキュリティゲート（各 private repo の .github/workflows/ にコピー）
+#   runner-light (Docker socket 無し) で実行。Critical/High/Secret で fail。
+#   DefectDojo へは投入しない（PR は GitHub 上で見せる）。
+#   閾値は repo の .github/eln-security.yml で調整可（無ければ既定）。
+name: security-pr
+
+on:
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write     # sticky comment 用
+  checks: write
+
+concurrency:
+  group: security-pr-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  security-pr:
+    runs-on: [self-hosted, linux, x64, ci, runner-light]
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+
+      - name: Load config
+        id: cfg
+        run: |
+          mkdir -p scan-results
+          echo "fail_sev=critical,high" >> "$GITHUB_OUTPUT"
+          echo "secret_fail=true" >> "$GITHUB_OUTPUT"
+          echo "med_fail=false" >> "$GITHUB_OUTPUT"
+          if [ -f .github/eln-security.yml ]; then
+            grep -qE 'medium_fail:[[:space:]]*true' .github/eln-security.yml && { sed -i 's/med_fail=false/med_fail=true/' "$GITHUB_OUTPUT"; } || true
+          fi
+
+      - name: Semgrep (SAST)
+        run: |
+          python3 -m pip install --user --break-system-packages -q semgrep
+          export PATH="$HOME/.local/bin:$PATH"
+          semgrep scan --config p/javascript --config p/python --config p/security-audit \
+            --sarif --output scan-results/semgrep.sarif --json --output scan-results/semgrep.json || true
+
+      - name: Gitleaks (secret)  # secret 値は出力しない (--redact)
+        run: |
+          V=8.30.1
+          curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v${V}/gitleaks_${V}_linux_x64.tar.gz" | tar -xz -C /tmp gitleaks
+          /tmp/gitleaks detect --source . --report-format sarif --report-path scan-results/gitleaks.sarif --redact --exit-code 0
+          /tmp/gitleaks detect --source . --report-format json  --report-path scan-results/gitleaks.json  --redact --exit-code 0
+
+      - name: Trivy filesystem
+        run: |
+          V=0.71.2
+          curl -sSL "https://github.com/aquasecurity/trivy/releases/download/v${V}/trivy_${V}_Linux-64bit.tar.gz" | tar -xz -C /tmp trivy
+          /tmp/trivy fs --scanners vuln,secret,misconfig --format json --output scan-results/trivy-fs.json --exit-code 0 .
+
+      - name: Dependency audit (npm/pnpm/yarn)
+        run: |
+          if   [ -f pnpm-lock.yaml ]; then corepack enable 2>/dev/null||true; pnpm audit --json > scan-results/pnpm-audit.json || true
+          elif [ -f package-lock.json ]; then npm audit --json > scan-results/npm-audit.json || true
+          elif [ -f yarn.lock ]; then yarn npm audit --json > scan-results/yarn-audit.json 2>/dev/null || true
+          else echo "no JS lockfile"; fi
+
+      - name: Safe Chain (Aikido) supply-chain guard
+        run: |
+          # 危険 package を検出したら fail。token/secret は出力しない。
+          if [ -f package.json ]; then
+            npx -y @aikidosec/safe-chain@latest scan . > scan-results/safe-chain.txt 2>&1 || echo "SAFE_CHAIN_FLAGGED=1" >> "$GITHUB_ENV"
+            sed -E 's/(token|secret|key)=[^ ]+/\1=***/Ig' scan-results/safe-chain.txt | tail -40 || true
+          else echo "no package.json; skip safe-chain"; fi
+
+      - name: Summarize + annotate + gate
+        id: gate
+        run: |
+          python3 ${{ github.workspace }}/.github/eln-scripts/summarize-findings.py \
+            --dir scan-results --fail-sev "${{ steps.cfg.outputs.fail_sev }}" \
+            --secret-fail "${{ steps.cfg.outputs.secret_fail }}" \
+            --medium-fail "${{ steps.cfg.outputs.med_fail }}" \
+            --summary-md scan-results/summary.md --out "$GITHUB_OUTPUT" \
+            >> "$GITHUB_STEP_SUMMARY"
+        # summarize-findings.py: counts/annotations(::error)/summary.md を出力し、
+        # gate 違反時に exit 1。スクリプトは eln-infra-ops/scripts/github/ から配布。
+
+      - name: Sticky PR comment
+        if: always() && github.event_name == 'pull_request'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+        run: node ${{ github.workspace }}/.github/eln-scripts/update-pr-security-comment.js scan-results/summary.md
