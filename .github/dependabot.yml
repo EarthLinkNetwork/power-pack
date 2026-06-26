@@ -1,27 +1,43 @@
-# dependabot.yml — 配置先は **リポジトリ直下の .github/dependabot.yml**（workflow ではない）。
-# 使わない ecosystem はブロックごと削除する。private repo でも version updates は利用可。
+# dependabot.yml — グループ化+月次で PR を最小化 (PR が hosted CI を起動しないよう数を絞る)。
+# Dependabot 自体は無料。コストは PR が起動する CI。よって PR を束ねて回数を減らす。
+# security update (脆弱性検知時) は schedule と無関係に即時 PR される (これも無料 + 重要なので維持)。
 version: 2
 updates:
-  - package-ecosystem: "npm"            # npm / pnpm / yarn 共通（lockfile を自動判別）
+  - package-ecosystem: "npm"
     directory: "/"
-    schedule: { interval: "weekly", day: "monday" }
-    open-pull-requests-limit: 5
-    labels: ["dependencies", "security"]
-    commit-message: { prefix: "deps" }
-  - package-ecosystem: "pip"            # pip / poetry / uv（pyproject/requirements を判別）
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 2
+    groups:
+      npm-all:
+        patterns: ["*"]
+    labels: ["dependencies"]
+    commit-message:
+      prefix: "deps"
+  - package-ecosystem: "pip"
     directory: "/"
-    schedule: { interval: "weekly", day: "monday" }
-    open-pull-requests-limit: 5
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 2
+    groups:
+      pip-all:
+        patterns: ["*"]
     labels: ["dependencies", "python"]
-    commit-message: { prefix: "deps(py)" }
   - package-ecosystem: "docker"
     directory: "/"
-    schedule: { interval: "weekly", day: "monday" }
-    open-pull-requests-limit: 3
-    labels: ["dependencies", "docker"]
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 1
+    groups:
+      docker-all:
+        patterns: ["*"]
   - package-ecosystem: "github-actions"
     directory: "/"
-    schedule: { interval: "weekly", day: "monday" }
-    open-pull-requests-limit: 5
-    labels: ["ci", "dependencies"]
-    commit-message: { prefix: "ci" }
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 1
+    groups:
+      gha-all:
+        patterns: ["*"]
+    commit-message:
+      prefix: "ci"
