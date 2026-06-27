@@ -20,7 +20,7 @@ concurrency:
 
 jobs:
   security-pr:
-    runs-on: [self-hosted, linux, x64, ci, runner-light]
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with: { fetch-depth: 0 }

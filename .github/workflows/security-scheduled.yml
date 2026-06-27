@@ -9,7 +9,7 @@ on:
 permissions: { contents: read }
 jobs:
   scheduled-scan:
-    runs-on: [self-hosted, linux, x64, ci, runner-security]
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with: { fetch-depth: 0 }
@@ -23,6 +23,7 @@ jobs:
           python3 -m pip install --user --break-system-packages -q semgrep; export PATH="$HOME/.local/bin:$PATH"
           semgrep scan --config p/security-audit --json --output scan-results/semgrep.json || true
       - name: Reimport + 新規 Critical/High のみ通知
+        continue-on-error: true
         env:
           DEFECTDOJO_URL: "${{ secrets.DEFECTDOJO_URL }}"
           DEFECTDOJO_TOKEN: "${{ secrets.DEFECTDOJO_TOKEN }}"

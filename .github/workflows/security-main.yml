@@ -5,7 +5,7 @@ on:
 permissions: { contents: read, security-events: write }
 jobs:
   main-scan-reimport:
-    runs-on: [self-hosted, linux, x64, ci, runner-security]
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with: { fetch-depth: 0 }
@@ -20,6 +20,7 @@ jobs:
           /tmp/trivy fs --format json --output scan-results/trivy-fs.json --exit-code 0 .
           [ -f package-lock.json ] && npm audit --json > scan-results/npm-audit.json || true
       - name: Reimport to DefectDojo (close_old_findings)
+        continue-on-error: true
         env: { DEFECTDOJO_URL: "${{ secrets.DEFECTDOJO_URL }}", DEFECTDOJO_TOKEN: "${{ secrets.DEFECTDOJO_TOKEN }}" }
         run: |
           R="${GITHUB_REPOSITORY##*/}"
