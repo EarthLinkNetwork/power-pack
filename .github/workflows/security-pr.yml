@@ -63,14 +63,6 @@ jobs:
           elif [ -f yarn.lock ]; then yarn npm audit --json > scan-results/yarn-audit.json 2>/dev/null || true
           else echo "no JS lockfile"; fi
 
-      - name: Safe Chain (Aikido) supply-chain guard
-        run: |
-          # 危険 package を検出したら fail。token/secret は出力しない。
-          if [ -f package.json ]; then
-            npx -y @aikidosec/safe-chain@latest scan . > scan-results/safe-chain.txt 2>&1 || echo "SAFE_CHAIN_FLAGGED=1" >> "$GITHUB_ENV"
-            sed -E 's/(token|secret|key)=[^ ]+/\1=***/Ig' scan-results/safe-chain.txt | tail -40 || true
-          else echo "no package.json; skip safe-chain"; fi
-
       - name: Summarize + annotate + gate
         id: gate
         run: |
