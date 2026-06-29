@@ -1,12 +1,15 @@
-# security-pr.yml — PR セキュリティゲート（各 private repo の .github/workflows/ にコピー）
-#   runner-light (Docker socket 無し) で実行。Critical/High/Secret で fail。
+# security-pr.yml — PR セキュリティ regression gate（各 private repo の .github/workflows/ にコピー）
+#   runner-light (Docker socket 無し) で実行。
+#   pull_request: このPRが新規に持ち込んだ critical/high/secret のみ fail。
+#     base ブランチ既存の backlog はブロックしない（regression gate モード）。
+#   workflow_dispatch: 従来どおり全件 gate（baseline 無しで後方互換）。
 #   DefectDojo へは投入しない（PR は GitHub 上で見せる）。
 #   閾値は repo の .github/eln-security.yml で調整可（無ければ既定）。
 name: security-pr
 
 on:
   pull_request:
-    branches: [main, develop]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -20,10 +23,10 @@ concurrency:
 
 jobs:
   security-pr:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, ci, runner-light]
     steps:
       - uses: actions/checkout@v4
-        with: { fetch-depth: 0 }
+        with: { fetch-depth: 0 }   # base ブランチ worktree のために full history 必要
 
       - name: Load config
         id: cfg
@@ -35,6 +38,8 @@ jobs:
           if [ -f .github/eln-security.yml ]; then
             grep -qE 'medium_fail:[[:space:]]*true' .github/eln-security.yml && { sed -i 's/med_fail=false/med_fail=true/' "$GITHUB_OUTPUT"; } || true
           fi
+
+      # ── HEAD スキャン（従来どおり scan-results/ に出力） ──────────────────────
 
       - name: Semgrep (SAST)
         run: |
@@ -63,17 +68,72 @@ jobs:
           elif [ -f yarn.lock ]; then yarn npm audit --json > scan-results/yarn-audit.json 2>/dev/null || true
           else echo "no JS lockfile"; fi
 
+      # ── BASE ブランチ再スキャン（pull_request のみ / regression gate 用） ──────
+
+      - name: Scan base branch (regression baseline)
+        if: github.event_name == 'pull_request'
+        env:
+          BASE: ${{ github.base_ref }}
+        run: |
+          # base ブランチを worktree に展開（fetch-depth:0 で取得済み）
+          git fetch origin "$BASE"
+          BASE_WORKTREE="${{ github.workspace }}/../base-checkout"
+          git worktree add "$BASE_WORKTREE" "origin/$BASE"
+          mkdir -p scan-results-base
+
+          # Semgrep on base（JSON のみ; gate に sarif は不要）
+          export PATH="$HOME/.local/bin:$PATH"
+          (cd "$BASE_WORKTREE" && \
+            semgrep scan --config p/javascript --config p/python --config p/security-audit \
+              --json --output "${{ github.workspace }}/scan-results-base/semgrep.json") || true
+
+          # Gitleaks on base（--redact を維持; secret 値を出力しない）
+          /tmp/gitleaks detect --source "$BASE_WORKTREE" \
+            --report-format json --report-path scan-results-base/gitleaks.json \
+            --redact --exit-code 0 || true
+
+          # Trivy on base
+          /tmp/trivy fs --scanners vuln,secret,misconfig --format json \
+            --output scan-results-base/trivy-fs.json --exit-code 0 "$BASE_WORKTREE" || true
+
+          # Dependency audit on base（lockfile 種別は base のものを見る）
+          if   [ -f "$BASE_WORKTREE/pnpm-lock.yaml" ]; then
+            corepack enable 2>/dev/null||true
+            (cd "$BASE_WORKTREE" && pnpm audit --json > "${{ github.workspace }}/scan-results-base/pnpm-audit.json" || true)
+          elif [ -f "$BASE_WORKTREE/package-lock.json" ]; then
+            (cd "$BASE_WORKTREE" && npm audit --json > "${{ github.workspace }}/scan-results-base/npm-audit.json" || true)
+          elif [ -f "$BASE_WORKTREE/yarn.lock" ]; then
+            (cd "$BASE_WORKTREE" && yarn npm audit --json > "${{ github.workspace }}/scan-results-base/yarn-audit.json" 2>/dev/null || true)
+          else echo "no JS lockfile in base"; fi
+
+          # worktree 後片付け
+          git worktree remove "$BASE_WORKTREE" --force
+
+      # ── Gate ─────────────────────────────────────────────────────────────────
+
       - name: Summarize + annotate + gate
         id: gate
         run: |
+          # pull_request かつ baseline が生成された場合のみ regression gate モード
+          BASELINE_ARG=""
+          if [ "${{ github.event_name }}" = "pull_request" ] && [ -d scan-results-base ]; then
+            BASELINE_ARG="--baseline-dir scan-results-base"
+          fi
           python3 ${{ github.workspace }}/.github/eln-scripts/summarize-findings.py \
-            --dir scan-results --fail-sev "${{ steps.cfg.outputs.fail_sev }}" \
+            --dir scan-results \
+            --fail-sev "${{ steps.cfg.outputs.fail_sev }}" \
             --secret-fail "${{ steps.cfg.outputs.secret_fail }}" \
             --medium-fail "${{ steps.cfg.outputs.med_fail }}" \
-            --summary-md scan-results/summary.md --out "$GITHUB_OUTPUT" \
+            --summary-md scan-results/summary.md \
+            --out "$GITHUB_OUTPUT" \
+            $BASELINE_ARG \
             >> "$GITHUB_STEP_SUMMARY"
-        # summarize-findings.py: counts/annotations(::error)/summary.md を出力し、
-        # gate 違反時に exit 1。スクリプトは eln-infra-ops/scripts/github/ から配布。
+        # summarize-findings.py:
+        #   regression gate モード（--baseline-dir 指定時）:
+        #     head - base の差分 findings のみ gate。base 既存 backlog は非ブロック。
+        #     summary.md に "🆕 New in this PR" / "📦 Pre-existing backlog" を分けて表示。
+        #   従来モード（--baseline-dir 未指定時）:
+        #     全件 gate（後方互換）。
 
       - name: Sticky PR comment
         if: always() && github.event_name == 'pull_request'
