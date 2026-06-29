@@ -46,7 +46,9 @@ jobs:
           python3 -m pip install --user --break-system-packages -q semgrep
           export PATH="$HOME/.local/bin:$PATH"
           semgrep scan --config p/javascript --config p/python --config p/security-audit \
-            --sarif --output scan-results/semgrep.sarif --json --output scan-results/semgrep.json || true
+            --sarif --output scan-results/semgrep.sarif || true
+          semgrep scan --config p/javascript --config p/python --config p/security-audit \
+            --json --output scan-results/semgrep.json || true
 
       - name: Gitleaks (secret)  # secret 値は出力しない (--redact)
         run: |
