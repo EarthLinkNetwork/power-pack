@@ -23,7 +23,7 @@ concurrency:
 
 jobs:
   security-pr:
-    runs-on: [self-hosted, linux, x64, ci, runner-light]
+    runs-on: ubuntu-latest  # public repo: GitHub-hosted runner required (runner group allows_public_repositories=false)
     steps:
       - uses: actions/checkout@v4
         with: { fetch-depth: 0 }   # base ブランチ worktree のために full history 必要
@@ -141,4 +141,4 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_AUTHOR: ${{ github.event.pull_request.user.login }}
-        run: node ${{ github.workspace }}/.github/eln-scripts/update-pr-security-comment.js scan-results/summary.md
+        run: node ${{ github.workspace }}/.github/eln-scripts/update-pr-security-comment.cjs scan-results/summary.md
