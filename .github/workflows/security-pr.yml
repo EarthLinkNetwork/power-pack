@@ -25,7 +25,7 @@ jobs:
   security-pr:
     runs-on: ubuntu-latest  # public repo: GitHub-hosted runner required (runner group allows_public_repositories=false)
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with: { fetch-depth: 0 }   # base ブランチ worktree のために full history 必要
 
       - name: Load config
